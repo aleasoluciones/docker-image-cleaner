@@ -1,7 +1,7 @@
 # =============================================================================
 # Variables
 # =============================================================================
-GO_VERSION     := 1.21.5
+GO_VERSION     := 1.25.14
 BINARY_NAME    := docker-image-cleaner
 PACKAGE_NAME   := bifer-docker-image-cleaner
 
@@ -41,7 +41,7 @@ check: $(BINARY_NAME).go go.mod go.sum
 		golang:$(GO_VERSION) bash -c '\
 		go fmt $(BINARY_NAME).go && \
 		go vet $(BINARY_NAME).go && \
-		go install honnef.co/go/tools/cmd/staticcheck@v0.4.7 && \
+		go install honnef.co/go/tools/cmd/staticcheck@2025.1.1 && \
 		staticcheck $(BINARY_NAME).go'
 
 # =============================================================================
