@@ -10,10 +10,17 @@ VERSION        := $(shell date -u +%Y%m%d%H%M%S)
 CWD            := $(shell pwd)
 CONTAINER_ROOT := /go/src/docker-image-cleaner
 
+# Debian repository upload
+REPOS_SERVER   := deb.alea-soluciones.com
+REPOS_PORT     := 6922
+REPOS_USER     := asur
+REPO_NAME      := bos-repo
+REPO_BINARY_DIR := /dataraid/debrepo/$(REPO_NAME)/binary
+
 # =============================================================================
 # Phony targets
 # =============================================================================
-.PHONY: help check compile package test_package clean
+.PHONY: help check compile package test_package package-deb-upload clean
 
 # =============================================================================
 # Help
@@ -27,6 +34,7 @@ help:
 	@echo "  compile        - Build binary (depends on check)"
 	@echo "  package        - Create .deb package (depends on compile)"
 	@echo "  test_package   - Test .deb installation"
+	@echo "  package-deb-upload - Upload local .deb to $(REPO_NAME) on $(REPOS_SERVER)"
 	@echo "  clean          - Remove build artifacts"
 	@echo ""
 	@echo "Variables:"
@@ -65,6 +73,16 @@ package: compile
 test_package: package
 	sudo docker run --rm -v $(CWD):/stuff:ro debian:bookworm-slim \
 		bash -c 'dpkg -i /stuff/$(PACKAGE_NAME)_*.deb'
+
+# =============================================================================
+# Upload .deb to the Debian repository (run from local machine)
+# =============================================================================
+package-deb-upload:
+	@ls $(PACKAGE_NAME)_*.deb >/dev/null 2>&1 || { echo "No $(PACKAGE_NAME)_*.deb found. Run 'make package' first."; exit 1; }
+	scp -P$(REPOS_PORT) $(PACKAGE_NAME)_*.deb $(REPOS_USER)@$(REPOS_SERVER):/home/$(REPOS_USER)/
+	ssh -p$(REPOS_PORT) $(REPOS_USER)@$(REPOS_SERVER) "sudo mv /home/$(REPOS_USER)/$(PACKAGE_NAME)_*.deb $(REPO_BINARY_DIR)/"
+	ssh -p$(REPOS_PORT) $(REPOS_USER)@$(REPOS_SERVER) "sudo chown root:root $(REPO_BINARY_DIR)/$(PACKAGE_NAME)_*.deb"
+	ssh -p$(REPOS_PORT) $(REPOS_USER)@$(REPOS_SERVER) "sudo /usr/sbin/repo2old $(REPO_NAME)"
 
 # =============================================================================
 # Clean
