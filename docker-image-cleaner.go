@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 	"log"
 )
 
@@ -84,18 +84,19 @@ func getRepoName(repoTag string) string {
 	return parts[0]
 }
 
-func listImages(ctx context.Context, l logger, dockerCli *client.Client) ([]types.ImageSummary, error) {
+func listImages(ctx context.Context, l logger, dockerCli *client.Client) ([]image.Summary, error) {
 	l.log("Listing all Docker images")
-	images, err := dockerCli.ImageList(ctx, types.ImageListOptions{All: true})
+	result, err := dockerCli.ImageList(ctx, client.ImageListOptions{All: true})
 	if err != nil {
 		l.log(fmt.Sprintf("Error listing images: %v", err))
 		return nil, err
 	}
+	images := result.Items
 	l.log(fmt.Sprintf("Found %d images", len(images)))
 	return images, nil
 }
 
-func groupImagesByRepo(images []types.ImageSummary) map[string][]ImageGroup {
+func groupImagesByRepo(images []image.Summary) map[string][]ImageGroup {
 	// Map: repo name -> list of ImageGroup
 	repos := make(map[string][]ImageGroup)
 	// Map: image ID -> ImageGroup (to handle multi-tag images)
@@ -202,7 +203,7 @@ func getImagesToDelete(repos map[string][]ImageGroup, imagesToKeep int, keepNone
 
 func removeImageTag(ctx context.Context, l logger, dockerCli *client.Client, tag string, force bool) error {
 	l.logDebug(fmt.Sprintf("Removing tag: %s", tag))
-	_, err := dockerCli.ImageRemove(ctx, tag, types.ImageRemoveOptions{
+	_, err := dockerCli.ImageRemove(ctx, tag, client.ImageRemoveOptions{
 		Force: force,
 	})
 	if err != nil {
@@ -214,7 +215,7 @@ func removeImageTag(ctx context.Context, l logger, dockerCli *client.Client, tag
 // removeImageByID removes an image by its ID, with optional force and error handling for already-deleted images
 func removeImageByID(ctx context.Context, l logger, dockerCli *client.Client, imageID string, force bool) error {
 	l.logDebug(fmt.Sprintf("Removing image by ID: %s", imageID))
-	_, err := dockerCli.ImageRemove(ctx, imageID, types.ImageRemoveOptions{
+	_, err := dockerCli.ImageRemove(ctx, imageID, client.ImageRemoveOptions{
 		Force: force,
 	})
 	if err != nil {
@@ -380,7 +381,7 @@ func main() {
 	l.setQuiet(quiet)
 	l.setDebug(debug)
 
-	dockerCli, err := client.NewClientWithOpts(client.FromEnv)
+	dockerCli, err := client.New(client.FromEnv)
 	if err != nil {
 		log.Panicf("Error creating Docker client: %s", err)
 	}
